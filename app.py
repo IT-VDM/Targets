@@ -111,7 +111,7 @@ with c2:
         "Groei t.o.v. 2025",
         min_value=0.0,
         max_value=200.0,
-        value=35.0,
+        value=42.0,
         step=1.0,
         format="%.2f",
         help="De gewenste groei op jaarbasis. De jaartarget wordt hiermee automatisch berekend."
