@@ -24,8 +24,8 @@ Wachtwoord: vdlx1234
 - Uitlegtekst over commissie gebruikt automatisch het ingestelde commissiepercentage.
 
 
-## Aangepast in v9
+## Aangepast in v10
 
-- Opgelost: bij kwartaalcontrole werd het Streamlit `DeltaGenerator` object zichtbaar.
-- Oorzaak: `st.success(...) if ... else st.error(...)` stond als losse expressie in de app.
-- Oplossing: vervangen door een gewone `if/else`, zodat alleen de statusmelding zichtbaar blijft.
+- Standaardverdeling bij eerste opening staat nu op **gelijk verdeeld over 12 maanden**.
+- De knop **Verdeel volgens 2025-seizoen** blijft beschikbaar als alternatief.
+- De DeltaGenerator-weergave in kwartaalcontrole blijft gecorrigeerd.
