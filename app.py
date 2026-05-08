@@ -1,6 +1,7 @@
 
 import streamlit as st
 import pandas as pd
+import altair as alt
 from io import BytesIO
 
 st.set_page_config(
@@ -15,26 +16,26 @@ st.set_page_config(
 MONTHS = ["Jan", "Feb", "Mrt", "Apr", "Mei", "Jun", "Jul", "Aug", "Sep", "Okt", "Nov", "Dec"]
 
 SALES_2025 = {
-    "Jan": 17875.33,
-    "Feb": 19945.85,
-    "Mrt": 19915.52,
-    "Apr": 25391.92,
-    "Mei": 32649.86,
-    "Jun": 21858.91,
-    "Jul": 47612.07,
-    "Aug": 23762.90,
-    "Sep": 36653.72,
-    "Okt": 51106.96,
-    "Nov": 47536.47,
-    "Dec": 49207.53,
+    "Jan": 6517.94,
+    "Feb": 8571.23,
+    "Mrt": 10415.83,
+    "Apr": 15303.62,
+    "Mei": 16938.59,
+    "Jun": 15672.52,
+    "Jul": 44562.66,
+    "Aug": 24336.74,
+    "Sep": 31857.59,
+    "Okt": 30409.29,
+    "Nov": 33193.43,
+    "Dec": 37378.83,
 }
 
 ACTUAL_2026 = {
-    "Jan": 31897.91,
-    "Feb": 38562.44,
-    "Mrt": 69894.67,
-    "Apr": 53941.61,
-    "Mei": 0.0,
+    "Jan": 47749.00,
+    "Feb": 31948.23,
+    "Mrt": 42226.93,
+    "Apr": 41337.31,
+    "Mei": 14608.85,
     "Jun": 0.0,
     "Jul": 0.0,
     "Aug": 0.0,
@@ -63,45 +64,38 @@ def eur0(value):
 def pct(value):
     return f"{value:.2f}%".replace(".", ",")
 
-def init_targets(annual_target):
+def init_targets_by_2025_season(annual_target):
     previous_total = sum(SALES_2025.values())
     factor = annual_target / previous_total if previous_total else 1
     return {m: SALES_2025[m] * factor for m in MONTHS}
 
+def init_targets_equal(annual_target):
+    monthly_target = annual_target / 12 if annual_target else 0
+    return {m: monthly_target for m in MONTHS}
+
 def normalize_targets_to_total(targets, annual_target):
     current_total = sum(targets.values())
     if current_total <= 0:
-        return init_targets(annual_target)
+        return init_targets_equal(annual_target)
     factor = annual_target / current_total
     return {m: targets[m] * factor for m in MONTHS}
 
-def distribute_remaining_months(targets, annual_target, locked_months):
-    """Adjusts only unlocked months proportionally so total equals annual target."""
-    locked_total = sum(targets[m] for m in locked_months)
-    unlocked_months = [m for m in MONTHS if m not in locked_months]
-    unlocked_total = sum(targets[m] for m in unlocked_months)
-    remaining = max(0, annual_target - locked_total)
-    if not unlocked_months:
-        return targets
-
-    if unlocked_total <= 0:
-        equal = remaining / len(unlocked_months)
-        for m in unlocked_months:
-            targets[m] = equal
-    else:
-        factor = remaining / unlocked_total
-        for m in unlocked_months:
-            targets[m] *= factor
-    return targets
+def build_detail_df(targets):
+    return pd.DataFrame({
+        "Maand": MONTHS,
+        "Omzet 2025": [SALES_2025[m] for m in MONTHS],
+        "Target 2026": [targets[m] for m in MONTHS],
+        "Werkelijke omzet 2026": [ACTUAL_2026[m] for m in MONTHS],
+    })
 
 # -----------------------------
 # Header
 # -----------------------------
 st.title("Target Verdeling & Commissie Tool")
-st.caption("Voorbeeld op basis van de omzetcijfers van Marcel — targets verdelen en kwartaalcommissie simuleren.")
+st.caption("Eenvoudige tool om de jaartarget te verdelen, kwartaaldoelen te controleren en commissie te simuleren.")
 
 # -----------------------------
-# Instellingen
+# 1. Instellingen
 # -----------------------------
 st.subheader("1. Instellingen")
 
@@ -117,7 +111,7 @@ with c2:
         "Groei t.o.v. 2025",
         min_value=0.0,
         max_value=200.0,
-        value=20.0,
+        value=35.0,
         step=1.0,
         format="%.2f",
         help="De gewenste groei op jaarbasis. De jaartarget wordt hiermee automatisch berekend."
@@ -147,48 +141,46 @@ st.info(
 # Session state
 # -----------------------------
 if "targets" not in st.session_state:
-    st.session_state.targets = init_targets(annual_target)
+    st.session_state.targets = init_targets_by_2025_season(annual_target)
 
 if "last_annual_target" not in st.session_state:
     st.session_state.last_annual_target = annual_target
 
-# Wanneer groeipercentage wijzigt, behoud de maandverhouding maar pas totaal aan.
 if abs(st.session_state.last_annual_target - annual_target) > 0.01:
     st.session_state.targets = normalize_targets_to_total(st.session_state.targets, annual_target)
     st.session_state.last_annual_target = annual_target
     st.rerun()
 
 # -----------------------------
-# Actieknoppen vóór widgets
+# 2. Verdeling kiezen
 # -----------------------------
-left, mid, right = st.columns([1, 1, 2])
+st.subheader("2. Verdeling kiezen")
 
-with left:
+st.write("Kies eerst een startverdeling. Nadien kan je de maandtargets manueel aanpassen.")
+
+b1, b2, b3 = st.columns(3)
+
+with b1:
     if st.button("Verdeel volgens 2025-seizoen", use_container_width=True):
-        st.session_state.targets = init_targets(annual_target)
+        st.session_state.targets = init_targets_by_2025_season(annual_target)
         st.rerun()
 
-with mid:
+with b2:
+    if st.button("Verdeel gelijk over 12 maanden", use_container_width=True):
+        st.session_state.targets = init_targets_equal(annual_target)
+        st.rerun()
+
+with b3:
     if st.button("Maak totaal passend", use_container_width=True):
         st.session_state.targets = normalize_targets_to_total(st.session_state.targets, annual_target)
         st.rerun()
 
-with right:
-    locked_actuals = st.checkbox(
-        "Behaalden maanden 2026 vastzetten bij herverdeling",
-        value=True,
-        help="Wanneer actief worden de maanden waarvoor al omzet 2026 is ingevuld niet automatisch verlaagd of verhoogd bij herverdeling."
-    )
+st.caption("**Maak totaal passend** behoudt de huidige verhouding tussen de maanden, maar zorgt dat de som exact gelijk is aan de jaartarget.")
 
 # -----------------------------
-# Maandtargets
+# 3. Maandtargets
 # -----------------------------
-st.subheader("2. Maandtargets verdelen")
-
-st.write(
-    "Pas de maandtargets aan. Het totaal moet gelijk zijn aan de jaartarget. "
-    "Met **Maak totaal passend** wordt de verdeling proportioneel rechtgezet."
-)
+st.subheader("3. Maandtargets aanpassen")
 
 cols = st.columns(4)
 for idx, month in enumerate(MONTHS):
@@ -203,41 +195,58 @@ for idx, month in enumerate(MONTHS):
         )
 
 target_total = sum(st.session_state.targets.values())
-difference = annual_target - target_total
+amount_to_distribute = annual_target - target_total
 
 m1, m2, m3 = st.columns(3)
 with m1:
     st.metric("Som maandtargets", eur0(target_total))
 with m2:
-    st.metric("Verschil met jaartarget", eur0(difference))
+    st.metric("Te verdelen targetbedrag", eur0(amount_to_distribute))
 with m3:
-    if abs(difference) <= 1:
+    if abs(amount_to_distribute) <= 1:
         st.success("Totaal klopt.")
     else:
         st.warning("Totaal wijkt af. Klik op ‘Maak totaal passend’.")
 
 # -----------------------------
-# Kwartaalcontrole
+# 4. Maandoverzicht
 # -----------------------------
-st.subheader("3. Kwartaalcontrole")
+st.subheader("4. Maandoverzicht")
 
-min_q_pct = st.slider(
-    "Minimum aandeel per kwartaal",
-    min_value=0,
-    max_value=40,
-    value=20,
-    step=1,
-    help="Voorkomt dat een kwartaal kunstmatig te laag wordt gezet."
-)
+detail_df = build_detail_df(st.session_state.targets)
 
-max_q_pct = st.slider(
-    "Maximum aandeel per kwartaal",
-    min_value=25,
-    max_value=60,
-    value=35,
-    step=1,
-    help="Voorkomt dat te veel target naar één kwartaal wordt verschoven."
-)
+with st.expander("Detail: maanddata 2025, targets 2026 en actuals 2026", expanded=True):
+    display_detail = detail_df.copy()
+    for col in ["Omzet 2025", "Target 2026", "Werkelijke omzet 2026"]:
+        display_detail[col] = display_detail[col].map(eur)
+    st.dataframe(display_detail, use_container_width=True, hide_index=True)
+
+# -----------------------------
+# 5. Kwartaalcontrole
+# -----------------------------
+st.subheader("5. Kwartaalcontrole")
+
+q_left, q_right = st.columns(2)
+
+with q_left:
+    min_q_pct = st.slider(
+        "Minimum aandeel per kwartaal",
+        min_value=0,
+        max_value=40,
+        value=12,
+        step=1,
+        help="Voorkomt dat een kwartaal kunstmatig te laag wordt gezet."
+    )
+
+with q_right:
+    max_q_pct = st.slider(
+        "Maximum aandeel per kwartaal",
+        min_value=25,
+        max_value=60,
+        value=40,
+        step=1,
+        help="Voorkomt dat te veel target naar één kwartaal wordt verschoven."
+    )
 
 quarter_rows = []
 quarter_cols = st.columns(4)
@@ -272,9 +281,9 @@ for i, (q, months) in enumerate(QUARTERS.items()):
         st.progress(min(1.0, q_share / 100))
 
 # -----------------------------
-# Commissie
+# 6. Commissie
 # -----------------------------
-st.subheader("4. Commissie per kwartaal")
+st.subheader("6. Commissie per kwartaal")
 
 commission_df = pd.DataFrame(quarter_rows)
 
@@ -297,53 +306,63 @@ with cc3:
     st.metric("Totale berekende commissie", eur(total_commission))
 
 with st.expander("Hoe wordt de commissie berekend?"):
-    st.markdown(
-        """
-        De commissie wordt **per kwartaal** berekend.
+    st.markdown("""
+    De commissie wordt **per kwartaal** berekend.
 
-        Per kwartaal kijkt de tool naar:
+    Per kwartaal kijkt de tool naar:
 
-        **werkelijke omzet 2026 − kwartaaltarget**
+    **werkelijke omzet 2026 − kwartaaltarget**
 
-        Alleen wanneer de werkelijke omzet hoger is dan het kwartaaltarget, wordt commissie berekend.
+    Alleen wanneer de werkelijke omzet hoger is dan het kwartaaltarget, wordt commissie berekend.
 
-        Voorbeeld:
+    Voorbeeld:
 
-        - Kwartaaltarget: € 100.000
-        - Werkelijke kwartaalomzet: € 125.000
-        - Omzet boven target: € 25.000
-        - Commissiepercentage: 2%
+    - Kwartaaltarget: € 100.000
+    - Werkelijke kwartaalomzet: € 125.000
+    - Omzet boven target: € 25.000
+    - Commissiepercentage: 2%
 
-        Commissie = € 25.000 × 2% = € 500
-        """
-    )
+    Commissie = € 25.000 × 2% = € 500
+    """)
 
 # -----------------------------
-# Detaildata
+# 7. Grafiek
 # -----------------------------
-with st.expander("Detail: maanddata 2025, targets 2026 en actuals 2026"):
-    detail_df = pd.DataFrame({
-        "Maand": MONTHS,
-        "Omzet 2025": [SALES_2025[m] for m in MONTHS],
-        "Target 2026": [st.session_state.targets[m] for m in MONTHS],
-        "Werkelijke omzet 2026": [ACTUAL_2026[m] for m in MONTHS],
-    })
-    display_detail = detail_df.copy()
-    for col in ["Omzet 2025", "Target 2026", "Werkelijke omzet 2026"]:
-        display_detail[col] = display_detail[col].map(eur)
-    st.dataframe(display_detail, use_container_width=True, hide_index=True)
+st.subheader("7. Visuele vergelijking per maand")
+
+st.write("De grafiek toont per maand drie balken naast elkaar: omzet 2025, target 2026 en werkelijke omzet 2026. Zo is vergelijken veel eenvoudiger.")
+
+chart_df = detail_df.copy()
+chart_long = chart_df.melt(
+    id_vars=["Maand"],
+    value_vars=["Omzet 2025", "Target 2026", "Werkelijke omzet 2026"],
+    var_name="Reeks",
+    value_name="Waarde"
+)
+
+month_order = MONTHS
+series_order = ["Omzet 2025", "Target 2026", "Werkelijke omzet 2026"]
+
+chart = alt.Chart(chart_long).mark_bar().encode(
+    x=alt.X("Maand:N", sort=month_order, title="Maand"),
+    xOffset=alt.XOffset("Reeks:N", sort=series_order),
+    y=alt.Y("Waarde:Q", title="Bedrag (€)"),
+    color=alt.Color("Reeks:N", sort=series_order, legend=alt.Legend(title="Legenda")),
+    tooltip=[
+        alt.Tooltip("Maand:N"),
+        alt.Tooltip("Reeks:N"),
+        alt.Tooltip("Waarde:Q", format=",.2f")
+    ]
+).properties(
+    height=420
+)
+
+st.altair_chart(chart, use_container_width=True)
 
 # -----------------------------
-# Export
+# 8. Export
 # -----------------------------
-st.subheader("5. Export")
-
-detail_df = pd.DataFrame({
-    "Maand": MONTHS,
-    "Omzet 2025": [SALES_2025[m] for m in MONTHS],
-    "Target 2026": [st.session_state.targets[m] for m in MONTHS],
-    "Werkelijke omzet 2026": [ACTUAL_2026[m] for m in MONTHS],
-})
+st.subheader("8. Export")
 
 quarter_export_df = commission_df.copy()
 

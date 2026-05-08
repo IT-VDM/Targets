@@ -1,29 +1,15 @@
 
-# Target Verdeling & Commissie Tool
+# Target Verdeling & Commissie Tool - Marcel v6
 
-Deze tool helpt om de jaartarget van Marcel te verdelen over de maanden en om kwartaalcommissie te simuleren.
-
-## Installatie
-
-Open een terminal in deze map en voer uit:
+## Starten
 
 ```bash
 pip install -r requirements.txt
 streamlit run app.py
 ```
 
-## Functionaliteiten
+## Wat is aangepast in v6?
 
-- Omzet 2025 van Marcel is ingebouwd
-- Werkelijke omzet 2026 t.e.m. april is ingebouwd
-- Instelbaar groeipercentage
-- Automatische berekening van jaartarget
-- Maandtargets handmatig aanpasbaar
-- Kwartaalcontrole met minimum en maximum aandeel per kwartaal
-- Instelbaar commissiepercentage, bijvoorbeeld 2%
-- Commissie wordt enkel berekend op omzet boven het kwartaaltarget
-- Export naar CSV en Excel
-
-## Commissieformule
-
-Commissie per kwartaal = max(0, werkelijke kwartaalomzet - kwartaaltarget) × commissiepercentage
+- De grafiek onderaan toont nu **balken naast elkaar** i.p.v. gestapelde balken.
+- Daardoor zijn **Omzet 2025**, **Target 2026** en **Werkelijke omzet 2026** veel duidelijker vergelijkbaar per maand.
+- Overige functionaliteit is behouden.
