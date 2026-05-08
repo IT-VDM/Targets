@@ -1,5 +1,5 @@
 
-# Target Verdeling & Commissie Tool - Marcel v6
+# Target Verdeling & Commissie Tool - Marcel v7
 
 ## Starten
 
@@ -8,8 +8,9 @@ pip install -r requirements.txt
 streamlit run app.py
 ```
 
-## Wat is aangepast in v6?
+## Aangepast in v7
 
-- De grafiek onderaan toont nu **balken naast elkaar** i.p.v. gestapelde balken.
-- Daardoor zijn **Omzet 2025**, **Target 2026** en **Werkelijke omzet 2026** veel duidelijker vergelijkbaar per maand.
-- Overige functionaliteit is behouden.
+- Opgelost: bij klikken op "Verdeel gelijk over 12 maanden" worden nu ook de maandinputvelden zelf bijgewerkt.
+- Opgelost: bij klikken op "Verdeel volgens 2025-seizoen" worden nu ook de maandinputvelden zelf bijgewerkt.
+- Opgelost: bij klikken op "Maak totaal passend" worden nu de huidige manueel ingegeven maandwaarden correct gelezen en aangepast.
+- De oorzaak was Streamlit session_state: de number_input widgets bewaren hun eigen key-waarde los van de interne targets.

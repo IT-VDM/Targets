@@ -64,6 +64,9 @@ def eur0(value):
 def pct(value):
     return f"{value:.2f}%".replace(".", ",")
 
+def input_key(month):
+    return f"target_input_{month}"
+
 def init_targets_by_2025_season(annual_target):
     previous_total = sum(SALES_2025.values())
     factor = annual_target / previous_total if previous_total else 1
@@ -79,6 +82,17 @@ def normalize_targets_to_total(targets, annual_target):
         return init_targets_equal(annual_target)
     factor = annual_target / current_total
     return {m: targets[m] * factor for m in MONTHS}
+
+def apply_targets(new_targets):
+    """
+    Belangrijk:
+    Streamlit number_input widgets bewaren hun eigen waarde in session_state.
+    Daarom moeten we zowel st.session_state.targets als de widget-keys bijwerken,
+    vóór de widgets opnieuw worden getekend.
+    """
+    st.session_state.targets = {m: float(new_targets[m]) for m in MONTHS}
+    for m in MONTHS:
+        st.session_state[input_key(m)] = float(round(new_targets[m], 2))
 
 def build_detail_df(targets):
     return pd.DataFrame({
@@ -111,7 +125,7 @@ with c2:
         "Groei t.o.v. 2025",
         min_value=0.0,
         max_value=200.0,
-        value=42.0,
+        value=45.0,
         step=1.0,
         format="%.2f",
         help="De gewenste groei op jaarbasis. De jaartarget wordt hiermee automatisch berekend."
@@ -138,18 +152,25 @@ st.info(
 )
 
 # -----------------------------
-# Session state
+# Session state initialisatie
 # -----------------------------
 if "targets" not in st.session_state:
-    st.session_state.targets = init_targets_by_2025_season(annual_target)
+    apply_targets(init_targets_by_2025_season(annual_target))
 
 if "last_annual_target" not in st.session_state:
     st.session_state.last_annual_target = annual_target
 
+# Wanneer groeipercentage wijzigt, behoud de maandverhouding maar pas totaal aan.
 if abs(st.session_state.last_annual_target - annual_target) > 0.01:
-    st.session_state.targets = normalize_targets_to_total(st.session_state.targets, annual_target)
+    new_targets = normalize_targets_to_total(st.session_state.targets, annual_target)
+    apply_targets(new_targets)
     st.session_state.last_annual_target = annual_target
     st.rerun()
+
+# Zorg dat alle input-keys bestaan.
+for m in MONTHS:
+    if input_key(m) not in st.session_state:
+        st.session_state[input_key(m)] = float(round(st.session_state.targets[m], 2))
 
 # -----------------------------
 # 2. Verdeling kiezen
@@ -162,17 +183,18 @@ b1, b2, b3 = st.columns(3)
 
 with b1:
     if st.button("Verdeel volgens 2025-seizoen", use_container_width=True):
-        st.session_state.targets = init_targets_by_2025_season(annual_target)
+        apply_targets(init_targets_by_2025_season(annual_target))
         st.rerun()
 
 with b2:
     if st.button("Verdeel gelijk over 12 maanden", use_container_width=True):
-        st.session_state.targets = init_targets_equal(annual_target)
+        apply_targets(init_targets_equal(annual_target))
         st.rerun()
 
 with b3:
     if st.button("Maak totaal passend", use_container_width=True):
-        st.session_state.targets = normalize_targets_to_total(st.session_state.targets, annual_target)
+        current_targets = {m: float(st.session_state[input_key(m)]) for m in MONTHS}
+        apply_targets(normalize_targets_to_total(current_targets, annual_target))
         st.rerun()
 
 st.caption("**Maak totaal passend** behoudt de huidige verhouding tussen de maanden, maar zorgt dat de som exact gelijk is aan de jaartarget.")
@@ -185,14 +207,16 @@ st.subheader("3. Maandtargets aanpassen")
 cols = st.columns(4)
 for idx, month in enumerate(MONTHS):
     with cols[idx % 4]:
-        st.session_state.targets[month] = st.number_input(
+        st.number_input(
             month,
             min_value=0.0,
-            value=float(round(st.session_state.targets[month], 2)),
             step=500.0,
             format="%.2f",
-            key=f"target_input_{month}"
+            key=input_key(month)
         )
+
+# Synchroniseer inputvelden terug naar targets.
+st.session_state.targets = {m: float(st.session_state[input_key(m)]) for m in MONTHS}
 
 target_total = sum(st.session_state.targets.values())
 amount_to_distribute = annual_target - target_total
